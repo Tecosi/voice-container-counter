@@ -1,0 +1,60 @@
+services:
+  backend:
+    build: ./backend
+    container_name: vcc-backend
+    environment:
+      - PORT=4318
+    networks:
+      - traefik
+      - internal
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${TRAEFIK_NET}
+
+      # API HTTPS : https://HOST/api/...  -> backend (/... grâce au strip)
+      - traefik.http.routers.vcc-api.rule=Host(`${VCC_HOST}`) && PathPrefix(`/api`)
+      - traefik.http.routers.vcc-api.entrypoints=websecure
+      - traefik.http.routers.vcc-api.tls=true
+      - traefik.http.routers.vcc-api.tls.certresolver=${CERTRESOLVER}
+      - traefik.http.routers.vcc-api.priority=100
+      - traefik.http.services.vcc-api.loadbalancer.server.port=4318
+      - traefik.http.middlewares.vcc-stripapi.stripprefix.prefixes=/api
+      - traefik.http.routers.vcc-api.middlewares=vcc-stripapi
+
+      # API HTTP -> HTTPS
+      - traefik.http.routers.vcc-api-http.rule=Host(`${VCC_HOST}`) && PathPrefix(`/api`)
+      - traefik.http.routers.vcc-api-http.entrypoints=web
+      - traefik.http.routers.vcc-api-http.middlewares=vcc-https
+      - traefik.http.middlewares.vcc-https.redirectscheme.scheme=https
+
+  frontend:
+    build: ./frontend
+    container_name: vcc-frontend
+    depends_on:
+      - backend
+    networks:
+      - traefik
+      - internal
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${TRAEFIK_NET}
+
+      # UI HTTPS
+      - traefik.http.routers.vcc.rule=Host(`${VCC_HOST}`)
+      - traefik.http.routers.vcc.entrypoints=websecure
+      - traefik.http.routers.vcc.tls=true
+      - traefik.http.routers.vcc.tls.certresolver=${CERTRESOLVER}
+      - traefik.http.routers.vcc.priority=1
+      - traefik.http.services.vcc.loadbalancer.server.port=80
+
+      # UI HTTP -> HTTPS
+      - traefik.http.routers.vcc-http.rule=Host(`${VCC_HOST}`)
+      - traefik.http.routers.vcc-http.entrypoints=web
+      - traefik.http.routers.vcc-http.middlewares=vcc-https
+
+networks:
+  internal:
+    driver: bridge
+  traefik:
+    external: true
+    name: ${TRAEFIK_NET}

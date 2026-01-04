@@ -1,0 +1,16 @@
+services:
+  backend:
+    build: ./backend
+    container_name: vcc-backend
+    ports:
+      - "4318:4318"
+    environment:
+      - PORT=4318
+
+  frontend:
+    build: ./frontend
+    container_name: vcc-frontend
+    ports:
+      - "4317:4317"
+    depends_on:
+      - backend
